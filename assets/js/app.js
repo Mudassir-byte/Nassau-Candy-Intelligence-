@@ -187,7 +187,7 @@
   }
 
   function fetchCsv() {
-    if (window.location.protocol === "file:") {
+    if (typeof window.NASSAU_CANDY_CSV === "string") {
       if (typeof window.NASSAU_CANDY_CSV === "string") {
        parseText(window.NASSAU_CANDY_CSV);
         return;
