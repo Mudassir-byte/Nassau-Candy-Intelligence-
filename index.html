@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nassau Candy Intelligence</title>
+  <meta
+    name="description"
+    content="Executive analytics dashboard for Nassau Candy Distributor sales, profitability, customers, products, and fulfillment routes."
+  />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="./assets/css/styles.css" />
+
+  <script defer src="./assets/js/embedded-data.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+  <script defer src="./assets/js/app.js"></script>
+</head>
+
+<body>
+  <div id="loader" class="loader" role="status" aria-live="polite">
+    <div class="loader-card">
+      <div class="loader-mark">NC</div>
+      <h1>Nassau Candy Intelligence</h1>
+      <p>Preparing executive analytics…</p>
+      <div class="loader-bar"><span></span></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status"></div>
+  <input id="filePicker" type="file" accept=".csv,text/csv" hidden />
+
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="Nassau Candy Intelligence home">
+      <span class="brand-mark">NC</span>
+      <span>
+        <strong>Nassau Candy</strong>
+        <small>Distribution Intelligence</small>
+      </span>
+    </a>
+
+    <nav class="top-actions" aria-label="Application actions">
+      <span id="scopeBadge" class="scope-badge">Waiting for data</span>
+      <button id="loadCsvButton" class="ghost-button" type="button">Load CSV</button>
+      <button id="openFiltersButton" class="primary-button" type="button">
+        Filters
+        <span id="filterCount" class="count-pill">0</span>
+      </button>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-content">
+        <p class="eyebrow">Factory-to-customer commercial intelligence</p>
+        <h1>
+          Turn every order into a sharper
+          <span>logistics and profitability decision.</span>
+        </h1>
+        <p class="hero-copy">
+          Explore regional demand, product economics, customer behavior,
+          factory routes, ship modes, and operational data health through a
+          single executive-ready dashboard.
+        </p>
+
+        <div class="hero-actions">
+          <button class="primary-button large" type="button" data-scroll-to="dashboardRoot">
+            Explore dashboard
+          </button>
+          <button class="ghost-button large" type="button" data-scroll-to="tab-fulfillment">
+            View route intelligence
+          </button>
+        </div>
+      </div>
+
+      <aside class="hero-panel glass-panel">
+        <p class="panel-label">Current analytical scope</p>
+        <div id="heroStats" class="hero-stats">
+          <div>
+            <span>Loading</span>
+            <strong>—</strong>
+          </div>
+          <div>
+            <span>Please wait</span>
+            <strong>—</strong>
+          </div>
+          <div>
+            <span>Dataset</span>
+            <strong>—</strong>
+          </div>
+        </div>
+        <div class="hero-orbit" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+      </aside>
+    </section>
+
+    <section id="dashboardRoot" class="dashboard hidden">
+      <aside id="filterPanel" class="filter-panel" aria-label="Dashboard filters">
+        <div class="filter-header">
+          <div>
+            <p class="eyebrow">Refine analysis</p>
+            <h2>Filters</h2>
+          </div>
+          <button id="closeFiltersButton" class="icon-button" type="button" aria-label="Close filters">×</button>
+        </div>
+
+        <div class="filter-section">
+          <label for="dateStart">Order date start</label>
+          <input id="dateStart" type="date" />
+        </div>
+
+        <div class="filter-section">
+          <label for="dateEnd">Order date end</label>
+          <input id="dateEnd" type="date" />
+        </div>
+
+        <div class="filter-section">
+          <label>Region</label>
+          <div id="regionChips" class="chip-group"></div>
+        </div>
+
+        <div class="filter-section">
+          <label>Division</label>
+          <div id="divisionChips" class="chip-group"></div>
+        </div>
+
+        <div class="filter-section">
+          <label>Ship mode</label>
+          <div id="modeChips" class="chip-group"></div>
+        </div>
+
+        <div class="filter-section split-two">
+          <div>
+            <label for="stateSelect">State / Province</label>
+            <select id="stateSelect" multiple size="7"></select>
+          </div>
+          <div>
+            <label for="citySelect">City</label>
+            <select id="citySelect" multiple size="7"></select>
+          </div>
+        </div>
+
+        <div class="filter-section">
+          <label for="productSelect">Product</label>
+          <select id="productSelect" multiple size="8"></select>
+        </div>
+
+        <div class="filter-section threshold-section">
+          <label for="thresholdRange">
+            Shipment threshold
+            <strong id="thresholdLabel">30 days</strong>
+          </label>
+          <input id="thresholdRange" type="range" min="1" max="365" value="30" />
+          <small>Used for delay frequency and route anomaly detection.</small>
+        </div>
+
+        <div class="filter-actions">
+          <button id="resetFiltersButton" class="ghost-button" type="button">Reset</button>
+          <button id="applyFiltersButton" class="primary-button" type="button">Apply</button>
+        </div>
+      </aside>
+
+      <div id="filterBackdrop" class="filter-backdrop"></div>
+
+      <section class="workspace">
+        <div id="dataHealthRibbon" class="data-health-ribbon"></div>
+
+        <div class="tabs" role="tablist" aria-label="Analytics views">
+          <button class="tab-button active" type="button" role="tab" data-tab="overview">Executive overview</button>
+          <button class="tab-button" type="button" role="tab" data-tab="customers">Products & customers</button>
+          <button class="tab-button" type="button" role="tab" data-tab="fulfillment">Fulfillment & routes</button>
+          <button class="tab-button" type="button" role="tab" data-tab="explorer">Data explorer</button>
+        </div>
+
+        <section id="tab-overview" class="tab-panel active" role="tabpanel">
+          <div id="kpiGrid" class="kpi-grid"></div>
+
+          <div class="insight-layout">
+            <article class="card insight-card">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">Plain-language insight</p>
+                  <h2>What matters now</h2>
+                </div>
+              </div>
+              <div id="insightsList" class="insights-list"></div>
+            </article>
+
+            <article class="card recommendation-card">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">Recommended actions</p>
+                  <h2>Executive playbook</h2>
+                </div>
+              </div>
+              <div id="recommendationList" class="recommendation-list"></div>
+            </article>
+          </div>
+
+          <div class="chart-grid">
+            <article class="card chart-card span-8">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">Momentum</p>
+                  <h2>Sales and profit trend</h2>
+                </div>
+                <span class="card-hint">Click legend to isolate metrics</span>
+              </div>
+              <div id="trendChart" class="chart tall-chart"></div>
+            </article>
+
+            <article class="card chart-card span-4">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">Mix</p>
+                  <h2>Division performance</h2>
+                </div>
+              </div>
+              <div id="divisionChart" class="chart tall-chart"></div>
+            </article>
+
+            <article class="card chart-card span-7">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">Geography</p>
+                  <h2>Regional performance</h2>
+                </div>
+                <span class="card-hint">Click a region to filter</span>
+              </div>
+              <div id="regionChart" class="chart medium-chart"></div>
+            </article>
+
+            <article class="card chart-card span-5">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">State ranking</p>
+                  <h2>Top states by sales</h2>
+                </div>
+              </div>
+              <div id="stateChart" class="chart medium-chart"></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="tab-customers" class="tab-panel" role="tabpanel">
+          <div class="chart-grid">
+            <article class="card chart-card span-7">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">Portfolio</p>
+                  <h2>Product sales leaderboard</h2>
+                </div>
+                <span class="card-hint">Click a bar to filter</span>
+              </div>
+              <div id="productChart" class="chart medium-chart"></div>
+            </article>
+
+            <article class="card chart-card span-5">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">Customer economics</p>
+                  <h2>Average order value</h2>
+                </div>
+              </div>
+              <div id="aovChart" class="chart medium-chart"></div>
+            </article>
+
+            <article class="card chart-card span-12">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">Advanced artifact</p>
+                  <h2>Product profitability heatmap</h2>
+                </div>
+                <div id="heatmapMetricToggle" class="segmented-control">
+                  <button type="button" class="active" data-heatmap="margin">Margin</button>
+                  <button type="button" data-heatmap="profit">Profit</button>
+                  <button type="button" data-heatmap="sales">Sales</button>
+                </div>
+              </div>
+              <div id="heatmapChart" class="chart heatmap-chart"></div>
+            </article>
+
+            <article class="card chart-card span-6">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">Segmentation</p>
+                  <h2>Customer order-frequency cohorts</h2>
+                </div>
+              </div>
+              <div id="customerSegmentChart" class="chart medium-chart"></div>
+            </article>
+
+            <article class="card table-card span-6">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">High-value customers</p>
+                  <h2>Top customers</h2>
+                </div>
+              </div>
+              <div class="table-wrap compact-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Customer</th>
+                      <th>Orders</th>
+                      <th>Sales</th>
+                      <th>Margin</th>
+                    </tr>
+                  </thead>
+                  <tbody id="topCustomersBody"></tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="tab-fulfillment" class="tab-panel" role="tabpanel">
+          <div class="chart-grid">
+            <article class="card chart-card span-5">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">Fulfillment</p>
+                  <h2>Ship-mode comparison</h2>
+                </div>
+                <span class="card-hint">Recorded lead times are anomalous</span>
+              </div>
+              <div id="shipModeChart" class="chart medium-chart"></div>
+            </article>
+
+            <article class="card chart-card span-7">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">Route efficiency</p>
+                  <h2>Fastest and slowest high-volume routes</h2>
+                </div>
+                <span class="card-hint">Click a route to filter by state</span>
+              </div>
+              <div id="routeChart" class="chart medium-chart"></div>
+            </article>
+
+            <article class="card chart-card span-12">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">Geographic route view</p>
+                  <h2>Factory-to-state shipping network</h2>
+                </div>
+                <span class="card-hint">Bubble size represents order volume</span>
+              </div>
+              <div id="networkChart" class="chart network-chart"></div>
+            </article>
+
+            <article class="card table-card span-6">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">Efficient routes</p>
+                  <h2>Top route benchmark</h2>
+                </div>
+              </div>
+              <div class="table-wrap compact-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Factory</th>
+                      <th>Destination</th>
+                      <th>Orders</th>
+                      <th>Avg lead</th>
+                    </tr>
+                  </thead>
+                  <tbody id="fastRouteBody"></tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="card table-card span-6">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">Bottlenecks</p>
+                  <h2>Slowest high-volume routes</h2>
+                </div>
+              </div>
+              <div class="table-wrap compact-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Factory</th>
+                      <th>Destination</th>
+                      <th>Orders</th>
+                      <th>Avg lead</th>
+                    </tr>
+                  </thead>
+                  <tbody id="slowRouteBody"></tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="tab-explorer" class="tab-panel" role="tabpanel">
+          <div class="chart-grid">
+            <article class="card chart-card span-4">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">Trust layer</p>
+                  <h2>Shipping data quality</h2>
+                </div>
+              </div>
+              <div id="qualityPanel" class="quality-panel"></div>
+            </article>
+
+            <article class="card table-card span-8">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">Order detail</p>
+                  <h2>Highest-value filtered orders</h2>
+                </div>
+                <button id="exportOrdersButton" class="ghost-button" type="button">Export CSV</button>
+              </div>
+
+              <div class="table-toolbar">
+                <input id="tableSearch" type="search" placeholder="Search order, customer, city, product…" />
+              </div>
+
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Order</th>
+                      <th>Customer</th>
+                      <th>Destination</th>
+                      <th>Mode</th>
+                      <th>Sales</th>
+                      <th>Profit</th>
+                      <th>Lead</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ordersBody"></tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="card table-card span-12">
+              <div class="card-header">
+                <div>
+                  <p class="eyebrow">Product economics</p>
+                  <h2>Product detail table</h2>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>Division</th>
+                      <th>Factory</th>
+                      <th>Orders</th>
+                      <th>Units</th>
+                      <th>Sales</th>
+                      <th>Profit</th>
+                      <th>Margin</th>
+                    </tr>
+                  </thead>
+                  <tbody id="productTableBody"></tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+        </section>
+      </section>
+    </section>
+
+    <section id="csvFallback" class="csv-fallback hidden">
+      <div class="glass-panel">
+        <h2>Dashboard could not load the data</h2>
+        <p>
+          The embedded dataset is unavailable. Run <code>embed-dataset.ps1</code>, start the local server,
+          or choose a CSV manually.
+        </p>
+        <button id="fallbackLoadButton" class="primary-button" type="button">Choose CSV file</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Nassau Candy Intelligence · Built for executive exploration and route-level diagnostics.</p>
+  </footer>
+</body>
+</html>
